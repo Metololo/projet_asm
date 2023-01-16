@@ -1,4 +1,5 @@
 ; external functions from X11 library
+extern printf
 extern XOpenDisplay
 extern XDisplayName
 extern XCloseDisplay
@@ -31,6 +32,7 @@ extern exit
 %define DWORD	4
 %define WORD	2
 %define BYTE	1
+%define POINT_NUMBER 5
 
 global main
 
@@ -44,12 +46,15 @@ height:        	resd	1
 window:		resq	1
 gc:		resq	1
 randomNum: resw 1
+xcoord: resw POINT_NUMBER
+ycoord: resw POINT_NUMBER
 
 section .data
-pointNumber: db 10
-
 
 event:		times	24 dq 0
+showX: db "Value : %d",10,0
+i: db 0
+divide: dw 360
 
 x1:	dd	0
 x2:	dd	0
@@ -110,6 +115,9 @@ mov rsi,qword[gc]
 mov rdx,0x000000	; Couleur du crayon
 call XSetForeground
 
+call random_coordinates
+mov byte[i],0
+
 boucle: ; boucle de gestion des évènements
 mov rdi,qword[display_name]
 mov rsi,event
@@ -127,86 +135,44 @@ jmp boucle
 ;#########################################
 dessin:
 
-    cmp byte[pointNumber],0
-	jl finBoucle
-	
-	dessinBoucle:
-	
-	
-	;couleur du point 1
-    mov rdi,qword[display_name]
-    mov rsi,qword[gc]
-    mov edx,0x000000	; Couleur du crayon ; rouge
-    call XSetForeground
-
-    ; Dessin d'un point rouge sous forme d'un petit rond : coordonnées (100,200)
-    mov rdi,qword[display_name]
-    mov rsi,qword[window]
-    mov rdx,qword[gc]
-    
-    push rdi
-    mov rdi,360
-    push rsi
-	mov rsi,randomNum
-	call random
-	pop rsi
-	pop rdi
-	
-    movzx rcx,word[randomNum]		; coordonnée en x du point
-    sub ecx,3
-    
-    ;push rdi
-    ;push rsi
-    ;mov rdi,360
-	;mov rsi,randomNum
-	;call random
-	;pop rsi
-	;pop rdi
-	
-	push rdi
-    mov rdi,360
-    push rsi
-	mov rsi,randomNum
-	call random
-	pop rsi
-	pop rdi
-    
-    movzx r8,word[randomNum] 		; coordonnée en y du point
-    sub r8,3
-    mov r9,6
-    mov rax,23040
-    push rax
-    push 0
-    push r9
-    call XFillArc
-	
-	dec byte[pointNumber]
-	cmp byte[pointNumber],1
-	ja dessinBoucle 
-	
-	finBoucle:
+drawPoints:
 
 
+mov rdi,showX
 
-;couleur de la ligne 2
+;couleur du point 1
 mov rdi,qword[display_name]
 mov rsi,qword[gc]
-mov edx,0xFFAA00	; Couleur du crayon ; orange
+mov edx,0x000000	; Couleur du crayon ; rouge
 call XSetForeground
-; coordonnées de la ligne 1 (noire)
-mov dword[x1],300
-mov dword[y1],50
-mov dword[x2],50
-mov dword[y2],350
-; dessin de la ligne 1
+
+; Dessin d'un point rouge sous forme d'un petit rond : coordonnées (100,200)
 mov rdi,qword[display_name]
 mov rsi,qword[window]
 mov rdx,qword[gc]
-mov ecx,dword[x1]	; coordonnée source en x
-mov r8d,dword[y1]	; coordonnée source en y
-mov r9d,dword[x2]	; coordonnée destination en x
-push qword[y2]		; coordonnée destination en y
-call XDrawLine
+
+push rbx
+mov rbx,rbx
+movzx rbx,byte[i]
+
+movzx rcx,word[xcoord+rbx*WORD]		; coordonnée en x du point
+sub ecx,3
+movzx r8,word[ycoord+rbx*WORD] 		; coordonnée en y du point
+
+pop rbx
+
+
+sub r8,3
+mov r9,6
+mov rax,23040
+push rax
+push 0
+push r9
+call XFillArc
+
+inc byte[i]
+cmp byte[i], POINT_NUMBER-1
+jb drawPoints
 
 
 ; ############################
@@ -227,22 +193,39 @@ closeDisplay:
     call    XCloseDisplay
     xor	    rdi,rdi
     call    exit
+    
+global random_coordinates:
+
+random_coordinates:
+    push rbp
+    mov ecx,ecx
+    movzx ecx,byte[i]
+    boucle1:
+        bad:
+            rdrand ax
+            jnc bad
+
+            xor dx,dx
+            div word[divide]
+            add dx,20
+            mov word[xcoord+ecx*WORD],dx
+            
+        
+
+        bad1:
+            rdrand ax
+            jnc bad1
+
+            xor dx,dx
+            div word[divide]
+            add dx,20
+            mov word[ycoord+ecx*WORD],dx
+            
+        
+        inc byte[i]
+        movzx ecx,byte[i]
+        cmp byte[i], POINT_NUMBER
+        jb boucle1
+    pop rbp
+    ret
 	
-
-global random
-random:
-
-bad:    
-        rdrand rax
-        jnc bad
-        
-        mov rbx,rdi
-        push rdx
-        xor rdx,rdx
-        
-        idiv rbx
-        add rdx,20
-        mov word[randomNum],dx
-        pop rdx
-ret
-
