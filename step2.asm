@@ -32,7 +32,7 @@ extern exit
 %define DWORD	4
 %define WORD	2
 %define BYTE	1
-%define POINT_NUMBER 6
+%define POINT_NUMBER 20
 
 global main
 
@@ -47,6 +47,9 @@ window:		resq	1
 gc:		resq	1
 randomNum: resw 1
 
+xredpoint: resw 1
+yredpoint: resw 1
+
 xcoord: resw POINT_NUMBER
 ycoord: resw POINT_NUMBER
 
@@ -55,6 +58,7 @@ q: resw 1
 temp: resd 1
 temp2: resq 1
 temp3: resq 1
+
 
 
 section .data
@@ -136,8 +140,13 @@ call XSetForeground
 call random_coordinates
 mov byte[i],0
 
+
+    
+
 call jarvis
 mov byte[i],0
+
+
 
 boucle: ; boucle de gestion des évènements
 mov rdi,qword[display_name]
@@ -155,6 +164,8 @@ jmp boucle
 ;#		DEBUT DE LA ZONE DE DESSIN		 #
 ;#########################################
 dessin:
+
+
 
 drawPoints:
 
@@ -196,6 +207,7 @@ jbe drawPoints
 
 mov byte[i],0
 
+
 drawJarvis:
 
 ;couleur de la ligne 2
@@ -233,7 +245,6 @@ pop rcx
 pop rax
 pop rbx
 
-
 ; dessin de la ligne 1
 mov rdi,qword[display_name]
 mov rsi,qword[window]
@@ -250,6 +261,29 @@ jb drawJarvis
 
 finjarvis:
 
+    
+
+    ;couleur du point 1
+    mov rdi,qword[display_name]
+    mov rsi,qword[gc]
+    mov edx,0xFF0000	; Couleur du crayon ; rouge
+    call XSetForeground
+    
+    ; Dessin d'un point rouge sous forme d'un petit rond : coordonnées (100,200)
+    mov rdi,qword[display_name]
+    mov rsi,qword[window]
+    mov rdx,qword[gc]
+    movzx rcx,word[xredpoint]		; coordonnée en x du point
+    sub ecx,3
+    movzx r8,word[yredpoint] 		; coordonnée en y du point
+    sub r8,3
+    mov r9,6
+    mov rax,23040
+    push rax
+    push 0
+    push r9
+    call XFillArc
+    
 
 
 ; ############################
@@ -303,12 +337,35 @@ random_coordinates:
         movzx ecx,byte[i]
         cmp byte[i], POINT_NUMBER
         jb boucle1
+    
+        
+        bad2:
+        rdrand ax
+        jnc bad2
+
+        xor dx,dx
+        div word[divide]
+        add dx,20
+        mov word[xredpoint],dx
+        
+        bad3:
+        rdrand ax
+        jnc bad3
+
+        xor dx,dx
+        div word[divide]
+        add dx,20
+        mov word[yredpoint],dx
+    
+    
     pop rbp
     ret
 	
 	
 	global jarvis:
     jarvis:
+    
+    
         push rbp
         
         searchP:
@@ -322,7 +379,6 @@ random_coordinates:
     mov ax,word[xcoord+edx*WORD]
     
     cmp word[xcoord+ecx*WORD],ax
-    
     
     
     jb isbelow
@@ -346,16 +402,8 @@ random_coordinates:
 	movzx ebx,word[hullpos]    
 	mov word[xhull+ebx*WORD],ax
 	mov word[yhull+ebx*WORD],cx
+
     
-    mov rdi,result
-	movzx rsi,word[xhull+ebx*WORD]
-	movzx rdx,word[yhull+ebx*WORD]
-	mov rax,0
-	call printf
-    
-    
-    
-	
 	searchq:
 	mov ax,word[p]
 	mov bx,POINT_NUMBER
@@ -450,27 +498,16 @@ random_coordinates:
         mov word[xhull+ecx*WORD],bx
         mov word[yhull+ecx*WORD],dx
         
-
         
         mov ax,word[l]
         cmp word[p],ax
         jne searchq
         
+    
+        
         mov byte[i],0
         
-        bouclec:
-        xor rcx,rcx
-        movzx ecx,byte[i]
         
-        mov rdi,result
-        movzx rsi,word[xhull+ecx*WORD]
-        movzx rdx,word[yhull+ecx*WORD]
-        mov rax,0
-        call printf
-        
-        inc byte[i]
-        cmp byte[i],POINT_NUMBER
-        jbe bouclec
         
         pop rbp
     ret
